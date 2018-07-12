@@ -60,9 +60,8 @@ namespace FileTransferClient
         }
 
         // Upload a file continuing a given starting byte
-        public static long SendFile(string filename, long startByte) 
+        public static long SendFile(string filename, bool isNewFile) 
         {
-            long finishedBytes = startByte;
             long returnStatus;
 
             // Check that the file exists        
@@ -77,8 +76,6 @@ namespace FileTransferClient
 
             // Tell server we're sending a file
             FileStream fileStream = new FileStream(filename, FileMode.Open);
-            fileStream.Seek(startByte, SeekOrigin.Begin);
-
             BinaryReader inFile = null;
             TcpClient socket = null;
         
@@ -88,20 +85,22 @@ namespace FileTransferClient
                 socket.ReceiveTimeout = SOCKET_TIME_OUT;
             
                 DataOutputStream dataOutToServer = new DataOutputStream(socket.GetStream());
+                DataInputStream dataInFromServer = new DataInputStream(socket.GetStream());
+
                 dataOutToServer.WriteString("upload");
                 dataOutToServer.WriteString(filename);
                 dataOutToServer.WriteLong(fileSizeInBytes);
+                dataOutToServer.WriteBoolean(isNewFile);
 
-                // Tell server if this is a continue upload or new one
-                // True = New, False = Continue
-                dataOutToServer.WriteBoolean(startByte == 0);
-                dataOutToServer.WriteLong(startByte);
+                // Get how much upload was sent to the server
+                long finishedBytes = dataInFromServer.ReadLong();
             
                 Console.WriteLine("File size: " + fileSizeInBytes + " bytes");
-                Console.WriteLine("Starting upload at " + startByte + " bytes");
+                Console.WriteLine("Starting upload at " + finishedBytes + " bytes");
             
                 byte[] data = new byte[BYTE_TRANSFER_RATE];
-            
+
+                fileStream.Seek(finishedBytes, SeekOrigin.Begin);
                 inFile = new BinaryReader(fileStream);
                 int readBytes = inFile.Read(data, 0, data.Length);
             
@@ -125,7 +124,7 @@ namespace FileTransferClient
             catch (Exception e) 
             {
                 Console.WriteLine("Error sendFile(): " + e.Message);
-                returnStatus = finishedBytes;
+                returnStatus = 0; // Restart download
             } 
             finally 
             {
@@ -158,9 +157,13 @@ namespace FileTransferClient
             Console.WriteLine("Uploading file " + filename + " ...");
         
             long sendStatus = 0;
-        
-            while (sendStatus >= 0) 
-                sendStatus = SendFile(filename, sendStatus);
+            bool isNewFile = true;
+
+            while (sendStatus >= 0)
+            {
+                sendStatus = SendFile(filename, isNewFile);
+                isNewFile = false;
+            }
         }
 
         // Receive a file continuing at a given starting byte

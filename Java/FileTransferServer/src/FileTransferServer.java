@@ -70,8 +70,7 @@ public class FileTransferServer {
 
             System.out.println("NOTE: One of the IP addresses above is what the file transfer client needs to connect to this server.");
         } catch (Exception e) {
-            System.out.println("Error: " + e.getMessage());
-            System.out.println("If you get this error, kindly send an email to it2051229@gmail.com");
+            System.out.println("Error displayIPAddresses(): " + e.getMessage());
             System.exit(0);
         }
     }
@@ -86,7 +85,7 @@ public class FileTransferServer {
             try {
                 return new ServerSocket(readInt());
             } catch (Exception e) {
-                System.out.println("Error: Invalid port number. " + e.getMessage());
+                System.out.println("Error openServerSocket(): " + e.getMessage());
             }
         }
     }
@@ -104,9 +103,17 @@ public class FileTransferServer {
 
         File file = new File(filename);
 
-        // Do file transfer
-        long receivedBytes = dataInFromClient.readLong();
-        outFile = new FileOutputStream(file, !isNewFile);
+        if (isNewFile) {
+            if (file.exists()) {
+                file.delete();
+            }
+            
+            file.createNewFile();
+        }
+
+        // Tell client what byte should we start
+        long receivedBytes = file.length();
+        outFile = new FileOutputStream(file, true);
 
         byte[] data = new byte[BYTE_TRANSFER_RATE];
 

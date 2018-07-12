@@ -73,8 +73,7 @@ public class FileTransferClient {
     }
 
     // Upload a file continuing a given starting byte
-    public static long sendFile(String filename, long startByte) {
-        long finishedBytes = startByte;
+    public static long sendFile(String filename, boolean isNewFile) {
         long returnStatus;
 
         // Check that the file exists
@@ -98,22 +97,23 @@ public class FileTransferClient {
             socket.setSoTimeout(SOCKET_TIME_OUT);
             
             DataOutputStream dataOutToServer = new DataOutputStream(socket.getOutputStream());
+            DataInputStream dataInFromServer = new DataInputStream(socket.getInputStream());
+            
             writeString(dataOutToServer, "upload");
             writeString(dataOutToServer, filename);
             dataOutToServer.writeLong(fileSizeInBytes);
-
-            // Tell server if this is a continue upload or new one
-            // True = New, False = Continue
-            dataOutToServer.writeBoolean(startByte == 0);
-            dataOutToServer.writeLong(startByte);
+            dataOutToServer.writeBoolean(isNewFile);
+            
+            // Get how much upload was sent to the server
+            long finishedBytes = dataInFromServer.readLong();
             
             System.out.println("File size: " + fileSizeInBytes + " bytes");
-            System.out.println("Starting upload at " + startByte + " bytes");
+            System.out.println("Starting upload at " + finishedBytes + " bytes");
             
             byte[] data = new byte[BYTE_TRANSFER_RATE];
             
             inFile = new FileInputStream(file);
-            inFile.skip(startByte);
+            inFile.skip(finishedBytes);
             int readBytes = inFile.read(data);
             
             while (readBytes > 0) {
@@ -133,7 +133,7 @@ public class FileTransferClient {
             returnStatus = -2; // Means don't restart the upload
         } catch (Exception e) {
             System.out.println("Error sendFile(): " + e.getMessage());
-            returnStatus = finishedBytes;
+            returnStatus = 0; // Restart download
         } finally {
             // Close resources
             try {
@@ -160,9 +160,11 @@ public class FileTransferClient {
         System.out.println("Uploading file " + filename + " ...");
         
         long sendStatus = 0;
+        boolean isNewFile = true;
         
         while (sendStatus >= 0) {
-            sendStatus = sendFile(filename, sendStatus);
+            sendStatus = sendFile(filename, isNewFile);
+            isNewFile = false;
         }
     }
 

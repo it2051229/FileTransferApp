@@ -2,6 +2,8 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Net;
+using System.Net.NetworkInformation;
 using System.Net.Sockets;
 using System.Text;
 using System.Threading.Tasks;
@@ -12,16 +14,71 @@ namespace FileTransferServer
     {
         private const int BYTE_TRANSFER_RATE = 8192;
         private const int SOCKET_TIME_OUT = 30000;
+
+        private static FileStream fileStream = null;
         private static BinaryWriter outFile = null;
+
+        // Utility function that forces the user to enter an integer value
+        public static int ReadInt()
+        {
+            while (true)
+            {
+                int value;
+
+                if (int.TryParse(Console.ReadLine(), out value))
+                    return value;
+
+                Console.WriteLine("Enter an integer value: ");
+            }
+        }
     
+        // Display all the IP addresses of this computer, IPv4 only
+        public static void DisplayIPAddresses()
+        {
+            Console.WriteLine("Listing all your IP addresses...");
+
+            try
+            {
+                // Scan each network interface hardware
+                foreach (NetworkInterface ni in NetworkInterface.GetAllNetworkInterfaces())
+                {
+                    if (ni.NetworkInterfaceType == NetworkInterfaceType.Wireless80211 
+                        || ni.NetworkInterfaceType == NetworkInterfaceType.Ethernet)
+                        foreach (UnicastIPAddressInformation ip in ni.GetIPProperties().UnicastAddresses)
+                            if (ip.Address.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork)
+                                Console.WriteLine("IP Address: " + ip.Address.ToString() + ", Name: " + ni.Name);
+                }
+
+                Console.WriteLine("NOTE: One of the IP addresses above is what the file transfer client needs to connect to this server.");
+            }
+            catch(Exception e)
+            {
+                Console.WriteLine("Error DisplayIPAddresses(): " + e.Message);
+                Environment.Exit(0);
+            }
+        }
+        
         // Attempt to open an available server socket
         public static TcpListener OpenServerSocket() 
         {
-            return new TcpListener(8000);
+            while(true)
+            {
+                Console.Write("Enter an available port number where to listen for incoming connection: ");
+
+                // Attempt to open the connection
+                try
+                {
+                    return new TcpListener(IPAddress.Any, ReadInt());
+                }
+                catch(Exception e)
+                {
+                    Console.WriteLine("Error OpenServerSocket(): " + e.Message);
+                }
+            }
         }
 
         // Transfer file from client
-        public static void ReceiveFile(DataInputStream dataInFromClient)
+        public static void ReceiveFile(DataInputStream dataInFromClient, DataOutputStream dataOutToClient)
         {
             Console.WriteLine("File upload requested...");
             string filename = dataInFromClient.ReadString();
@@ -32,12 +89,20 @@ namespace FileTransferServer
             Console.WriteLine("File size: " + fileSizeInBytes + " bytes");
             Console.WriteLine("New File : " + isNewFile);
 
-            // Do file transfer
-            long receivedBytes = dataInFromClient.ReadLong();
+            if(isNewFile)
+            {
+                // Delete old file if it exists
+                if (File.Exists(filename))
+                    File.Delete(filename);
 
-            FileStream fileStream = new FileStream(filename, isNewFile ? FileMode.Create : FileMode.Append);
-            fileStream.Seek(receivedBytes, SeekOrigin.Begin);
-            
+                File.Create(filename).Close();
+            }
+
+            // Tell client the bytes we have for the file so that they can continue uploading on that point
+            long receivedBytes = new FileInfo(filename).Length;
+            dataOutToClient.WriteLong(receivedBytes);
+
+            fileStream = new FileStream(filename, FileMode.Append);                        
             outFile = new BinaryWriter(fileStream);
 
             byte[] data = new byte[BYTE_TRANSFER_RATE];
@@ -54,8 +119,6 @@ namespace FileTransferServer
             }
 
             Console.WriteLine("Received " + filename + " complete!");
-            fileStream.Close();
-            outFile.Close();
         }
 
         // Transfer file to client
@@ -86,7 +149,7 @@ namespace FileTransferServer
             Console.WriteLine("File size: " + fileSizeInBytes + " bytes");
             Console.WriteLine("Starting download at: " + sentBytes + " bytes");
 
-            FileStream fileStream = new FileStream(filename, FileMode.Open);
+            fileStream = new FileStream(filename, FileMode.Open);
             fileStream.Seek(sentBytes, SeekOrigin.Begin);
 
             BinaryReader inFile = new BinaryReader(fileStream);
@@ -114,6 +177,9 @@ namespace FileTransferServer
         // Entry point of the program
         static void Main(string[] args)
         {
+            // Display all IP addresses
+            DisplayIPAddresses();
+
             // Start the server
             TcpListener serverSocket = OpenServerSocket();
             serverSocket.Start();
@@ -139,7 +205,7 @@ namespace FileTransferServer
                     string request = dataInFromClient.ReadString().ToLower();
 
                     if (request.Equals("upload"))
-                        ReceiveFile(dataInFromClient);
+                        ReceiveFile(dataInFromClient, dataOutToClient);
                     else if (request.Equals("download"))
                         SendFile(dataInFromClient, dataOutToClient);
                 }
@@ -161,11 +227,25 @@ namespace FileTransferServer
                         clientSocket = null;
                     }
 
+                    // Close any filestream
+                    if (fileStream != null)
+                    {
+                        try
+                        {
+                            fileStream.Flush();
+                            fileStream.Close();
+                        }
+                        catch { }
+
+                        fileStream = null;
+                    }
+
                     // Close the used file for the request
                     if(outFile != null)
                     {
                         try
                         {
+                            outFile.Flush();
                             outFile.Close();
                         }
                         catch { }
