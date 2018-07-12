@@ -29,6 +29,27 @@ public class FileTransferServer {
         }
     }
 
+    // Read a string without using the read UTF function to be more portable
+    public static String readString(DataInputStream inputStream) throws Exception {
+        // Expect the number of bytes
+        int bytesLength = inputStream.readInt();
+
+        // Read the bytes
+        byte[] bytes = new byte[bytesLength];
+        inputStream.read(bytes, 0, bytesLength);
+        return new String(bytes);
+    }
+
+    // Write a string without using the write UTF function to be more portable
+    public static void writeString(DataOutputStream outputStream, String str) throws Exception {
+        // Send how many bytes to expect
+        byte[] bytes = str.getBytes();
+        outputStream.writeInt(bytes.length);
+
+        // Write the bytes
+        outputStream.writeBytes(str);
+    }
+
     // List all the IP addresses of the computer where this server is running
     // This will only list IPv4 addresses
     public static void displayIPAddresses() {
@@ -73,7 +94,7 @@ public class FileTransferServer {
     // Transfer file from client 
     public static void receiveFile(DataInputStream dataInFromClient) throws Exception {
         System.out.println("File upload requested...");
-        String filename = dataInFromClient.readUTF();
+        String filename = readString(dataInFromClient);
         long fileSizeInBytes = dataInFromClient.readLong();
         boolean isNewFile = dataInFromClient.readBoolean();
 
@@ -106,7 +127,7 @@ public class FileTransferServer {
     // Transfer file to client
     public static void sendFile(DataInputStream dataInFromClient, DataOutputStream dataOutToClient) throws Exception {
         System.out.println("File download requested...");
-        String filename = dataInFromClient.readUTF();
+        String filename = readString(dataInFromClient);
 
         System.out.println("Filename : " + filename);
 
@@ -138,7 +159,7 @@ public class FileTransferServer {
         byte[] data = new byte[BYTE_TRANSFER_RATE];
         int readBytes = inFile.read(data);
 
-        while (readBytes >= 0) {
+        while (readBytes > 0) {
             dataOutToClient.write(data, 0, readBytes);
 
             // Update stats
@@ -165,7 +186,7 @@ public class FileTransferServer {
 
         while (true) {
             Socket clientSocket = null;
-            
+
             try {
                 // Wait for a file transfer request
                 clientSocket = serverSocket.accept();
@@ -178,7 +199,7 @@ public class FileTransferServer {
                 DataOutputStream dataOutToClient = new DataOutputStream(clientSocket.getOutputStream());
 
                 // Get the request
-                String request = dataInFromClient.readUTF();
+                String request = readString(dataInFromClient);
 
                 if (request.equalsIgnoreCase("upload")) {
                     receiveFile(dataInFromClient);
@@ -190,7 +211,7 @@ public class FileTransferServer {
 
                 // We're done with the request
             } catch (Exception e) {
-                System.out.println("main(): " + e.getMessage());
+                System.out.println("Error main(): " + e.getMessage());
             } finally {
                 if (clientSocket != null) {
                     try {
@@ -204,6 +225,8 @@ public class FileTransferServer {
                         outFile.close();
                     } catch (Exception e) {
                     }
+
+                    outFile = null;
                 }
             }
         }

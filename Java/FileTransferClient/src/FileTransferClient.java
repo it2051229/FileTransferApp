@@ -8,10 +8,10 @@ import java.net.Socket;
 import java.util.Scanner;
 
 public class FileTransferClient {
-
+    
     private final static int BYTE_TRANSFER_RATE = 8192;
     private final static int SOCKET_TIME_OUT = 30000;
-
+    
     private static Scanner in = new Scanner(System.in);
     private static String serverIP;
     private static int serverPort;
@@ -27,6 +27,27 @@ public class FileTransferClient {
         }
     }
 
+    // Read a string without using the read UTF function to be more portable
+    public static String readString(DataInputStream inputStream) throws Exception {
+        // Expect the number of bytes
+        int bytesLength = inputStream.readInt();
+
+        // Read the bytes
+        byte[] bytes = new byte[bytesLength];
+        inputStream.read(bytes, 0, bytesLength);        
+        return new String(bytes);
+    }
+
+    // Write a string without using the write UTF function to be more portable
+    public static void writeString(DataOutputStream outputStream, String str) throws Exception {
+        // Send how many bytes to expect
+        byte[] bytes = str.getBytes();
+        outputStream.writeInt(bytes.length);
+
+        // Write the bytes
+        outputStream.writeBytes(str);
+    }
+
     // Connect to server and return the socket
     public static void readServerDetails() {
         while (true) {
@@ -34,16 +55,16 @@ public class FileTransferClient {
                 // Get server details
                 System.out.print("Enter Server's IP Address: ");
                 serverIP = in.nextLine();
-
+                
                 System.out.print("Enter Server's Port Number: ");
                 serverPort = readInt();
 
                 // Do test and connect
                 Socket socket = new Socket(serverIP, serverPort);
                 DataOutputStream dataOutToServer = new DataOutputStream(socket.getOutputStream());
-                dataOutToServer.writeUTF("ping");
+                writeString(dataOutToServer, "ping");
                 socket.close();
-
+                
                 return;
             } catch (Exception e) {
                 System.out.println("Error readServerDetails(): " + e.getMessage());
@@ -58,7 +79,7 @@ public class FileTransferClient {
 
         // Check that the file exists
         File file = new File(filename);
-
+        
         if (!file.exists()) {
             System.out.println("File does not exist, upload rejected!");
             return -1; // Do not restart send file
@@ -70,32 +91,32 @@ public class FileTransferClient {
         // Tell server we're sending a file
         FileInputStream inFile = null;
         Socket socket = null;
-
+        
         try {
-
+            
             socket = new Socket(serverIP, serverPort);
             socket.setSoTimeout(SOCKET_TIME_OUT);
             
             DataOutputStream dataOutToServer = new DataOutputStream(socket.getOutputStream());
-            dataOutToServer.writeUTF("upload");
-            dataOutToServer.writeUTF(filename);
+            writeString(dataOutToServer, "upload");
+            writeString(dataOutToServer, filename);
             dataOutToServer.writeLong(fileSizeInBytes);
 
             // Tell server if this is a continue upload or new one
             // True = New, False = Continue
             dataOutToServer.writeBoolean(startByte == 0);
-			dataOutToServer.writeLong(startByte);
-
-			System.out.println("File size: " + fileSizeInBytes + " bytes");
+            dataOutToServer.writeLong(startByte);
+            
+            System.out.println("File size: " + fileSizeInBytes + " bytes");
             System.out.println("Starting upload at " + startByte + " bytes");
-
+            
             byte[] data = new byte[BYTE_TRANSFER_RATE];
-
+            
             inFile = new FileInputStream(file);
             inFile.skip(startByte);
             int readBytes = inFile.read(data);
-
-            while (readBytes >= 0) {
+            
+            while (readBytes > 0) {
                 dataOutToServer.write(data, 0, readBytes);
 
                 // Update stats
@@ -106,7 +127,7 @@ public class FileTransferClient {
                 // Read next data
                 readBytes = inFile.read(data);
             }
-            
+
             // Upload complete
             System.out.println("Sent " + filename + ", upload complete!");
             returnStatus = -2; // Means don't restart the upload
@@ -121,7 +142,7 @@ public class FileTransferClient {
                 }
             } catch (Exception e) {
             }
-
+            
             try {
                 if (socket != null) {
                     socket.close();
@@ -129,7 +150,7 @@ public class FileTransferClient {
             } catch (Exception e) {
             }
         }
-
+        
         return returnStatus;
     }
 
@@ -137,9 +158,9 @@ public class FileTransferClient {
     // intermittent network connection
     public static void sendFile(String filename) throws Exception {
         System.out.println("Uploading file " + filename + " ...");
-
+        
         long sendStatus = 0;
-
+        
         while (sendStatus >= 0) {
             sendStatus = sendFile(filename, sendStatus);
         }
@@ -150,19 +171,20 @@ public class FileTransferClient {
     public static long receiveFile(String filename, long startByte) {
         long finishedBytes = startByte;
         long returnStatus;
-
+        
         FileOutputStream outFile = null;
         Socket socket = null;
-
+        
         try {
             socket = new Socket(serverIP, serverPort);
             socket.setSoTimeout(SOCKET_TIME_OUT);
-
+            
             DataOutputStream dataOutToServer = new DataOutputStream(socket.getOutputStream());
             DataInputStream dataInFromServer = new DataInputStream(socket.getInputStream());
-            dataOutToServer.writeUTF("download");
-            dataOutToServer.writeUTF(filename);
-
+            
+            writeString(dataOutToServer, "download");
+            writeString(dataOutToServer, filename);
+            
             if (dataInFromServer.readBoolean()) {
                 // Tell server what byte to start downloading
                 dataOutToServer.writeLong(startByte);
@@ -173,13 +195,13 @@ public class FileTransferClient {
                 // Continue and append to file
                 outFile = new FileOutputStream(filename, true);
                 byte[] data = new byte[BYTE_TRANSFER_RATE];
-
+                
                 System.out.println("Starting download at " + startByte + " bytes");
-
+                
                 while (finishedBytes < fileSizeInBytes) {
                     int readBytes = dataInFromServer.read(data, 0, data.length);
                     outFile.write(data, 0, readBytes);
-
+                    
                     finishedBytes += readBytes;
 
                     // Update stats
@@ -208,7 +230,7 @@ public class FileTransferClient {
                 }
             } catch (Exception e) {
             }
-
+            
             try {
                 if (socket != null) {
                     socket.close();
@@ -216,7 +238,7 @@ public class FileTransferClient {
             } catch (Exception e) {
             }
         }
-
+        
         return returnStatus;
     }
 
@@ -225,15 +247,15 @@ public class FileTransferClient {
     public static void receiveFile(String filename) throws Exception {
         // If a local file exists, then delete it
         File file = new File(filename);
-
+        
         if (file.exists()) {
             System.out.println("A file with the same name in the directory exists, it was deleted.");
             file.delete();
         }
-
+        
         System.out.println("Downloading file " + filename + " ...");
         long receiveStatus = 0;
-
+        
         while (receiveStatus >= 0) {
             receiveStatus = receiveFile(filename, receiveStatus);
         }
@@ -251,17 +273,17 @@ public class FileTransferClient {
         System.out.println("    > download <filename>");
         System.out.println("To exit:");
         System.out.println("   > exit");
-
+        
         try {
             while (true) {
                 System.out.print("server@" + serverIP + ":" + serverPort + "> ");
                 Scanner scanner = new Scanner(in.nextLine());
                 String command = scanner.next();
-
+                
                 if (command.equalsIgnoreCase("exit")) {
                     break;
                 }
-
+                
                 if (command.equalsIgnoreCase("upload") && scanner.hasNext()) {
                     sendFile(scanner.next());
                 } else if (command.equalsIgnoreCase("download") && scanner.hasNext()) {
