@@ -4,3 +4,9 @@ C:\Users\it2051229\Desktop\FileTransferApp-master\C#\FileTransferClient\FileTran
 C:\Users\it2051229\Desktop\FileTransferApp-master\C#\FileTransferClient\FileTransferClient\obj\Debug\FileTransferClient.csprojResolveAssemblyReference.cache
 C:\Users\it2051229\Desktop\FileTransferApp-master\C#\FileTransferClient\FileTransferClient\obj\Debug\FileTransferClient.exe
 C:\Users\it2051229\Desktop\FileTransferApp-master\C#\FileTransferClient\FileTransferClient\obj\Debug\FileTransferClient.pdb
+C:\Users\it2051229\Documents\GitHub\FileTransferApp\C#\FileTransferClient\FileTransferClient\bin\Debug\FileTransferClient.exe.config
+C:\Users\it2051229\Documents\GitHub\FileTransferApp\C#\FileTransferClient\FileTransferClient\obj\Debug\FileTransferClient.exe
+C:\Users\it2051229\Documents\GitHub\FileTransferApp\C#\FileTransferClient\FileTransferClient\obj\Debug\FileTransferClient.pdb
+C:\Users\it2051229\Documents\GitHub\FileTransferApp\C#\FileTransferClient\FileTransferClient\bin\Debug\FileTransferClient.exe
+C:\Users\it2051229\Documents\GitHub\FileTransferApp\C#\FileTransferClient\FileTransferClient\bin\Debug\FileTransferClient.pdb
+C:\Users\it2051229\Documents\GitHub\FileTransferApp\C#\FileTransferClient\FileTransferClient\obj\Debug\FileTransferClient.csprojResolveAssemblyReference.cache
