@@ -91,7 +91,7 @@ public class FileTransferServer {
     }
 
     // Transfer file from client 
-    public static void receiveFile(DataInputStream dataInFromClient) throws Exception {
+    public static void receiveFile(DataInputStream dataInFromClient, DataOutputStream dataOutToClient) throws Exception {
         System.out.println("File upload requested...");
         String filename = readString(dataInFromClient);
         long fileSizeInBytes = dataInFromClient.readLong();
@@ -113,6 +113,8 @@ public class FileTransferServer {
 
         // Tell client what byte should we start
         long receivedBytes = file.length();
+        dataOutToClient.writeLong(receivedBytes);
+        
         outFile = new FileOutputStream(file, true);
 
         byte[] data = new byte[BYTE_TRANSFER_RATE];
@@ -209,7 +211,7 @@ public class FileTransferServer {
                 String request = readString(dataInFromClient);
 
                 if (request.equalsIgnoreCase("upload")) {
-                    receiveFile(dataInFromClient);
+                    receiveFile(dataInFromClient, dataOutToClient);
                 } else if (request.equalsIgnoreCase("download")) {
                     sendFile(dataInFromClient, dataOutToClient);
                 } else if (request.equalsIgnoreCase("ping")) {

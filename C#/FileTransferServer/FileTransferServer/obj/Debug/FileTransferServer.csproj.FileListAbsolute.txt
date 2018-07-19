@@ -1,0 +1,6 @@
+C:\Users\it2051229\Desktop\FileTransferApp-master\C#\FileTransferServer\FileTransferServer\bin\Debug\FileTransferServer.exe.config
+C:\Users\it2051229\Desktop\FileTransferApp-master\C#\FileTransferServer\FileTransferServer\bin\Debug\FileTransferServer.exe
+C:\Users\it2051229\Desktop\FileTransferApp-master\C#\FileTransferServer\FileTransferServer\bin\Debug\FileTransferServer.pdb
+C:\Users\it2051229\Desktop\FileTransferApp-master\C#\FileTransferServer\FileTransferServer\obj\Debug\FileTransferServer.csprojResolveAssemblyReference.cache
+C:\Users\it2051229\Desktop\FileTransferApp-master\C#\FileTransferServer\FileTransferServer\obj\Debug\FileTransferServer.exe
+C:\Users\it2051229\Desktop\FileTransferApp-master\C#\FileTransferServer\FileTransferServer\obj\Debug\FileTransferServer.pdb
